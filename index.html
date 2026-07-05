@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RBX3D — Roblox Avatar Extractor</title>
+<style>
+  :root{
+    --bg:#0a0c0e;
+    --panel:#12161a;
+    --line:#232a30;
+    --text:#d8dee2;
+    --dim:#6b7680;
+    --accent:#4fd1c5;
+    --accent-dim:#2a5f5a;
+    --mono: 'IBM Plex Mono', 'Courier New', monospace;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--mono);
+    min-height:100vh;
+    background-image:
+      linear-gradient(var(--line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size:40px 40px;
+    background-position:-1px -1px;
+  }
+  header{
+    padding:28px 24px 20px;
+    border-bottom:1px solid var(--line);
+    display:flex; justify-content:space-between; align-items:baseline;
+    flex-wrap:wrap; gap:8px;
+  }
+  header h1{
+    font-size:15px; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--text); font-weight:600;
+  }
+  header h1 span{color:var(--accent);}
+  header .tag{font-size:11px; color:var(--dim); letter-spacing:.05em;}
+
+  main{max-width:960px; margin:0 auto; padding:32px 24px 80px;}
+
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    padding:24px;
+    margin-bottom:24px;
+  }
+  .panel-label{
+    font-size:11px; color:var(--accent); letter-spacing:.15em;
+    text-transform:uppercase; margin-bottom:14px; display:block;
+  }
+  .row{display:flex; gap:10px; flex-wrap:wrap;}
+  input[type=text], textarea{
+    background:#0d1114; border:1px solid var(--line); color:var(--text);
+    font-family:var(--mono); font-size:13px; padding:11px 12px;
+    flex:1; min-width:200px;
+  }
+  textarea{width:100%; min-height:90px; resize:vertical; line-height:1.6;}
+  input:focus, textarea:focus{outline:none; border-color:var(--accent-dim);}
+
+  button{
+    background:transparent; border:1px solid var(--accent-dim); color:var(--accent);
+    font-family:var(--mono); font-size:12px; letter-spacing:.08em;
+    text-transform:uppercase; padding:11px 18px; cursor:pointer;
+    transition:background .15s, color .15s;
+  }
+  button:hover{background:var(--accent); color:#06110f;}
+  button:disabled{opacity:.35; cursor:not-allowed;}
+  button:disabled:hover{background:transparent; color:var(--accent);}
+
+  #status{
+    font-size:12px; color:var(--dim); margin-top:12px; min-height:16px;
+  }
+  #status.error{color:#e07a5f;}
+  #status.ok{color:var(--accent);}
+
+  #viewer-wrap{
+    position:relative; height:420px; border:1px solid var(--line);
+    background:#07090b; margin-top:18px; display:none;
+  }
+  #viewer-wrap.active{display:block;}
+  #viewer-hud{
+    position:absolute; top:10px; left:12px; font-size:11px; color:var(--dim);
+    letter-spacing:.05em; pointer-events:none;
+  }
+
+  .actions{display:flex; gap:10px; margin-top:16px; flex-wrap:wrap;}
+
+  footer{
+    text-align:center; font-size:11px; color:var(--dim);
+    padding:20px; letter-spacing:.05em;
+  }
+
+  ::-webkit-scrollbar{width:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--line);}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>RBX<span>3D</span> // AVATAR EXTRACTOR</h1>
+  <div class="tag">source: thumbnails.roblox.com — avatar-3d</div>
+</header>
+
+<main>
+
+  <div class="panel">
+    <span class="panel-label">01 — Single Fetch</span>
+    <div class="row">
+      <input type="text" id="username" placeholder="username roblox, mis. builderman">
+      <button id="btnLoad">Load</button>
+      <button id="btnDownload" disabled>Download .zip</button>
+    </div>
+    <div id="status">standby.</div>
+    <div id="viewer-wrap">
+      <div id="viewer-hud">drag to rotate — scroll to zoom</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <span class="panel-label">02 — Batch Fetch</span>
+    <textarea id="batchList" placeholder="satu username per baris&#10;builderman&#10;Roblox&#10;shedletsky"></textarea>
+    <div class="actions">
+      <button id="btnBatch">Download All as .zip</button>
+    </div>
+    <div id="batchStatus" style="font-size:12px;color:var(--dim);margin-top:10px;">max 25 username per batch.</div>
+  </div>
+
+  <div class="panel" style="border-color:var(--accent-dim);">
+    <span class="panel-label">Backend Required</span>
+    <p style="font-size:12px; color:var(--dim); line-height:1.7;">
+      File ini adalah frontend saja. Jalankan backend proxy (main.py) di localhost:8000
+      sebelum memakai halaman ini — browser tidak bisa fetch API Roblox langsung karena CORS.
+      Kalau backend jalan di alamat lain, ubah <code style="color:var(--accent);">API_BASE</code> di bagian bawah file ini.
+    </p>
+  </div>
+
+</main>
+
+<footer>RBX3D PROXY CLIENT — for personal / educational use with public Roblox endpoints</footer>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { OBJLoader } from "three/addons/loaders/OBJLoader.js";
+import { MTLLoader } from "three/addons/loaders/MTLLoader.js";
+
+const API_BASE = "http://localhost:8000";
+
+const statusEl = document.getElementById("status");
+const batchStatusEl = document.getElementById("batchStatus");
+const viewerWrap = document.getElementById("viewer-wrap");
+const btnLoad = document.getElementById("btnLoad");
+const btnDownload = document.getElementById("btnDownload");
+const btnBatch = document.getElementById("btnBatch");
+const usernameInput = document.getElementById("username");
+
+let currentUsername = null;
+let renderer, scene, camera, controls, animId;
+
+function setStatus(el, msg, type=""){
+  el.textContent = msg;
+  el.className = type;
+}
+
+function initViewer(){
+  viewerWrap.classList.add("active");
+  if(renderer) return;
+
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(45, viewerWrap.clientWidth/viewerWrap.clientHeight, 0.1, 100);
+  camera.position.set(0, 1.4, 3.2);
+
+  renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+  renderer.setSize(viewerWrap.clientWidth, viewerWrap.clientHeight);
+  viewerWrap.appendChild(renderer.domElement);
+
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x0a0c0e, 1.1);
+  scene.add(hemi);
+  const dir = new THREE.DirectionalLight(0xffffff, 0.8);
+  dir.position.set(2,4,3);
+  scene.add(dir);
+
+  controls = new OrbitControls(camera, renderer.domElement);
+  controls.target.set(0, 1, 0);
+  controls.enableDamping = true;
+
+  window.addEventListener("resize", () => {
+    camera.aspect = viewerWrap.clientWidth/viewerWrap.clientHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(viewerWrap.clientWidth, viewerWrap.clientHeight);
+  });
+
+  (function loop(){
+    animId = requestAnimationFrame(loop);
+    controls.update();
+    renderer.render(scene, camera);
+  })();
+}
+
+function clearModel(){
+  if(!scene) return;
+  const toRemove = scene.children.filter(c => c.type === "Group" || c.type === "Mesh");
+  toRemove.forEach(o => scene.remove(o));
+}
+
+async function loadAvatar(username){
+  setStatus(statusEl, `mencari '${username}'...`);
+  btnDownload.disabled = true;
+
+  const res = await fetch(`${API_BASE}/api/user/${encodeURIComponent(username)}`);
+  if(!res.ok){
+    const err = await res.json().catch(()=>({detail:"gagal fetch"}));
+    throw new Error(err.detail || "gagal fetch");
+  }
+  const { manifest } = await res.json();
+
+  setStatus(statusEl, "memuat mesh 3D...");
+  initViewer();
+  clearModel();
+
+  const mtlLoader = new MTLLoader();
+  mtlLoader.setCrossOrigin("anonymous");
+  const materials = await mtlLoader.loadAsync(manifest.mtl);
+  materials.preload();
+
+  const objLoader = new OBJLoader();
+  objLoader.setMaterials(materials);
+  const obj = await objLoader.loadAsync(manifest.obj);
+
+  const box = new THREE.Box3().setFromObject(obj);
+  const size = box.getSize(new THREE.Vector3()).length();
+  const scale = 2 / (size || 1);
+  obj.scale.setScalar(scale);
+  const center = box.getCenter(new THREE.Vector3()).multiplyScalar(scale);
+  obj.position.sub(center);
+  obj.position.y += 1;
+
+  scene.add(obj);
+  currentUsername = username;
+  btnDownload.disabled = false;
+  setStatus(statusEl, `berhasil dimuat: ${username}`, "ok");
+}
+
+btnLoad.addEventListener("click", async () => {
+  const username = usernameInput.value.trim();
+  if(!username) return;
+  try{
+    await loadAvatar(username);
+  }catch(e){
+    setStatus(statusEl, e.message, "error");
+  }
+});
+
+usernameInput.addEventListener("keydown", (e) => {
+  if(e.key === "Enter") btnLoad.click();
+});
+
+btnDownload.addEventListener("click", () => {
+  if(!currentUsername) return;
+  window.location.href = `${API_BASE}/api/download/${encodeURIComponent(currentUsername)}`;
+});
+
+btnBatch.addEventListener("click", async () => {
+  const raw = document.getElementById("batchList").value;
+  const usernames = raw.split("\n").map(s => s.trim()).filter(Boolean);
+  if(usernames.length === 0) return;
+  if(usernames.length > 25){
+    setStatus(batchStatusEl, "maksimal 25 username per batch.", "error");
+    return;
+  }
+  setStatus(batchStatusEl, `memproses ${usernames.length} username...`);
+  btnBatch.disabled = true;
+  try{
+    const res = await fetch(`${API_BASE}/api/batch`, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ usernames })
+    });
+    if(!res.ok) throw new Error("batch gagal");
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "rbx3d_batch.zip";
+    a.click();
+    URL.revokeObjectURL(url);
+    setStatus(batchStatusEl, "selesai — zip terunduh.", "ok");
+  }catch(e){
+    setStatus(batchStatusEl, e.message, "error");
+  }finally{
+    btnBatch.disabled = false;
+  }
+});
+</script>
+</body>
+</html>
